@@ -59,7 +59,24 @@ long __stdcall VBVMR_Logout(void);
 
 	/** 
 	@brief Run Voicemeeter Application (get installation directory and run Voicemeeter Application).
-	@param vType : Voicemeeter type  (1 = Voicemeeter, 2= Voicemeeter Banana, 3= Voicemeeter Potato, 6 = Potato x64 bits).
+	@param vType : Voicemeeter type  
+					1 = Voicemeeter Standard, 
+					2 = Voicemeeter Banana, 
+					3 = Voicemeeter Potato, 
+					4 = Voicemeeter Standard x64 bits, 
+					5 = Voicemeeter Banana x64 bits, 
+					6 = Voicemeeter Potato x64 bits.
+					10 = VBDeviceCheck.
+					11 = VoicemeeterMacroButtons.
+					12 = VMStreamerView
+					13 = VoicemeeterBUSMatrix8
+					14 = VoicemeeterBUSGEQ15
+					15 = VBAN2MIDI
+					20 = VBCABLE_ControlPanel
+					21 = VBVMAUX_ControlPanel
+					22 = VBVMVAIO3_ControlPanel
+					23 = VBVoicemeeterVAIO_ControlPanel
+
 	@return :	 0: Ok.
 				-1: not installed (UninstallString not found in registry).
 				-2: unknown vType number
@@ -780,6 +797,27 @@ long __stdcall VBVMR_MacroButton_SetStatus(long nuLogicalButton, float fValue, l
 
 
 
+/******************************************************************************/
+/*                                                                            */
+/*                               Other Services                               */
+/*                                                                            */
+/******************************************************************************/
+
+	/** 
+	@brief set custom button on Voicemeeter to get Push message and display information
+	@param zindex : button index: 0 to 1
+	@param bType : -1: no button displayed / 0: no position / 1: Push button, / 2: 2x Positions button (Click behavior).
+	@param bState : -1: no change, 0: released, 1: pushed.
+	@param szwLabel: button label (32 char max)
+	@param hwCommand: Windows handle that will receive WM_COMMAND message.
+	@param IdCommand: Command ID (WPARAM) / LPARAM: button state.
+	
+	@return :	 0: OK (no error).
+				-1: error
+				-2: no server.
+	*/
+
+long __stdcall VBVMR_SetCustomButton(long zindex, long bType, long bState, WCHAR *szwLabel, HWND hwCommand, long IdCommand);
 
 
 
@@ -827,6 +865,7 @@ typedef long (__stdcall *T_VBVMR_MacroButton_IsDirty)(void);
 typedef long (__stdcall *T_VBVMR_MacroButton_GetStatus)(long nuLogicalButton, float * pValue, long bitmode);
 typedef long (__stdcall *T_VBVMR_MacroButton_SetStatus)(long nuLogicalButton, float fValue, long bitmode);
 
+typedef long (__stdcall *T_VBVMR_SetCustomButton)(long zindex, long bType, long bState, WCHAR *szwLabel, HWND hwCommand, long IdCommand);
 
 
 typedef struct tagVBVMR_INTERFACE
@@ -867,7 +906,7 @@ typedef struct tagVBVMR_INTERFACE
 	T_VBVMR_MacroButton_GetStatus	VBVMR_MacroButton_GetStatus;
 	T_VBVMR_MacroButton_SetStatus	VBVMR_MacroButton_SetStatus;
 
-
+	T_VBVMR_SetCustomButton			VBVMR_SetCustomButton;
 } T_VBVMR_INTERFACE, *PT_VBVMR_INTERFACE, *LPT_VBVMR_INTERFACE;
 
 #ifdef VBUSE_LOCALLIB
@@ -923,12 +962,12 @@ typedef struct tagVBAN_VMRT_PACKET			//packedt ident: 0
 
 #pragma pack()
 
-#define VMRTSTATE_MODE_MUTE			0x00000001
-#define VMRTSTATE_MODE_SOLO			0x00000002
-#define VMRTSTATE_MODE_MONO			0x00000004
-#define VMRTSTATE_MODE_MUTEC		0x00000008
+#define VMRTSTATE_MODE_MUTE			0x00000001	//MUTE SATE
+#define VMRTSTATE_MODE_SOLO			0x00000002	//SOLO SATE
+#define VMRTSTATE_MODE_MONO			0x00000004	//MONO SATE
+#define VMRTSTATE_MODE_MUTEC		0x00000008	//MUTE CENTER SATE
 
-#define VMRTSTATE_MODE_MIXDOWN		0x00000010
+#define VMRTSTATE_MODE_MIXDOWN		0x00000010	//all BUS mode
 #define VMRTSTATE_MODE_REPEAT		0x00000020
 #define VMRTSTATE_MODE_MIXDOWNB		0x00000030
 #define VMRTSTATE_MODE_COMPOSITE	0x00000040
@@ -939,29 +978,31 @@ typedef struct tagVBAN_VMRT_PACKET			//packedt ident: 0
 #define VMRTSTATE_MODE_CENTER		0x00000090
 #define VMRTSTATE_MODE_LFE			0x000000A0
 #define VMRTSTATE_MODE_REAR			0x000000B0
+#define VMRTSTATE_MODE_LEFT			0x000000C0
+#define VMRTSTATE_MODE_RIGHT		0x000000D0
 
-#define VMRTSTATE_MODE_MASK			0x000000F0
+#define VMRTSTATE_MODE_MASK			0x000000F0	// To extract BUS MODE status
 
 #define VMRTSTATE_MODE_EQ			0x00000100
 #define VMRTSTATE_MODE_CROSS		0x00000200
 #define VMRTSTATE_MODE_EQB			0x00000800
 
-#define VMRTSTATE_MODE_BUSA			0x00001000
+#define VMRTSTATE_MODE_BUSA			0x00001000	// = BUS A1 assignation button
 #define VMRTSTATE_MODE_BUSA1		0x00001000
 #define VMRTSTATE_MODE_BUSA2		0x00002000
 #define VMRTSTATE_MODE_BUSA3		0x00004000
 #define VMRTSTATE_MODE_BUSA4		0x00008000
 #define VMRTSTATE_MODE_BUSA5		0x00080000
 
-#define VMRTSTATE_MODE_BUSB			0x00010000
+#define VMRTSTATE_MODE_BUSB			0x00010000	// = BUS B1 assignation button
 #define VMRTSTATE_MODE_BUSB1		0x00010000
 #define VMRTSTATE_MODE_BUSB2		0x00020000
 #define VMRTSTATE_MODE_BUSB3		0x00040000
 
-#define VMRTSTATE_MODE_PAN0			0x00000000
-#define VMRTSTATE_MODE_PANCOLOR		0x00100000
-#define VMRTSTATE_MODE_PANMOD		0x00200000
-#define VMRTSTATE_MODE_PANMASK		0x00F00000
+#define VMRTSTATE_MODE_PAN0			0x00000000	// POSITION PANEL is displayed
+#define VMRTSTATE_MODE_PANCOLOR		0x00100000	// COLOR PANEL is displayed
+#define VMRTSTATE_MODE_PANMOD		0x00200000	// MODULATION PANEL is displayed
+#define VMRTSTATE_MODE_PANMASK		0x00F00000	// To extract INTELLIPAN Display status
 
 #define VMRTSTATE_MODE_POSTFX_R		0x01000000
 #define VMRTSTATE_MODE_POSTFX_D		0x02000000
@@ -1029,7 +1070,7 @@ typedef struct tagVBAN_VMPARAM_STRIP
 	short GATE_release_ms;		// x 10
 
 	short DenoiserThreshold;	// x 100
-	short PitchEnabled;		
+	short PitchDenoiserMode;	// bit field, see define below.	
 	short Pitch_DryWet;			// x 100
 	short Pitch_Value;			// x 100
 	short Pitch_formant_lo;		// x 100
@@ -1046,6 +1087,9 @@ typedef struct tagVBAN_VMPARAM_STRIP
 #define VMRT_EQTYPE_LOSHELF	5
 #define VMRT_EQTYPE_HISHELF	6
 
+#define VMRT_PITCHDN_MODE_PITCHON	0x0001
+#define VMRT_PITCHDN_MODE_DNBYPASS	0x0100
+#define VMRT_PITCHDN_MODE_DNLEARN	0x0200
 
 #define expected_size_T_VBAN_VMPARAM_STRIP (8+ (8 * sizeof(short)) + (2*6) + (3 * 6 * sizeof(float)) + ((11 + 9 + 6 + 7) * sizeof(short)))
 //170
