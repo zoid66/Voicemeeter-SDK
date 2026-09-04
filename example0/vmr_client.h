@@ -1,7 +1,7 @@
 /*--------------------------------------------------------------------------------*/
 /* VMR_CLIENT: Reference example to use all functions of the VMR-API              */
 /*--------------------------------------------------------------------------------*/
-/* 'C' Sample Code to use VoicemeeterRemote                  V.Burel (c)2015-2021 */
+/* 'C' Sample Code to use VoicemeeterRemote                  V.Burel (c)2015-2026 */
 /*                                                                                */
 /*  Based on Minimal program ('C' Programming Under WIN32)                        */
 /*  WEB  : http://pagesperso-orange.fr/vb-audio/fr/pub/programming/index.htm      */
@@ -22,6 +22,7 @@
 /*  - How to install Audio Callback.                                              */
 /*  - How to manage Potato appplication gain/mute state (in virtual strip).       */
 /*  - How to manage MacroButtons states.                                          */
+/*  - How to manage Custom buttons on Voicemeeter Potato.                         */
 /*                                                                                */
 /*--------------------------------------------------------------------------------*/
 /*                                                                                */
@@ -48,17 +49,13 @@
 
 #define VMR_INCLUDE_MACROBUTTONS_REMOTING	//to include function related to MacroButtons 
 
+#define VMR_INCLUDE_CUSTOMBUTTON_REMOTING	//to include Custom Buttons
 
 #ifndef __MIN_VMRCLIENT_H__
 #define __MIN_VMRCLIENT_H__
 
-
-
-
-
-
 //version information (for program)
-#define SZPUBLICVERSION		"1.0.1.0"			//displayed version in about box
+#define SZPUBLICVERSION		"1.0.1.1"			//displayed version in about box
 #define SZPUBLICNAME		"Remote Voicemeeter - Minimal Program Example"	//displayed title in main window 
 
 //Information for Main window 
@@ -66,16 +63,16 @@
 #define UI_WIN_DY	640
 
 //version information (used in resource file)
-#define __FILEVERSION__			1,0,1,0
-#define __PRODUCTVERSION__		1,0,1,0
-#define __SZFILEVERSION__		"1, 0, 1, 0\0"
-#define __SZPRODUCTVERSION__	"1, 0, 1, 0\0"
+#define __FILEVERSION__			1,0,1,1
+#define __PRODUCTVERSION__		1,0,1,1
+#define __SZFILEVERSION__		"1, 0, 1, 1\0"
+#define __SZPRODUCTVERSION__	"1, 0, 1, 1\0"
  
 	#define __COMMENTS__			"Example of source code"
 	#define __COMPANYNAME__			"Audio Mechanic & Sound Breeder\0"
 	#define __FILEDESCRIPTION__		"Minimal Windows Application showing how to use VoicemeeterRemote.dll\0"
 	#define __INTERNALNAME__		"vmrClient"
-	#define __LEGALCOPYRIGHT__		"Copyright V.Burel©2015-2021\0"
+	#define __LEGALCOPYRIGHT__		"Copyright V.Burel©2015-2026\0"
 	#define __ORIGINALFILENAME__	"vmrClient.EXE\0"
 	#define __PRODUCTNAME__			"vmrClient\0"
 
@@ -126,10 +123,21 @@
 #define IDM_COMMAND_VOLAPP_8	267
 #define IDM_COMMAND_VOLAPP_9	268
 
+
 #define IDM_COMMAND_ACB_REGISTER	300
 #define IDM_COMMAND_ACB_UNREGISTER	301
 #define IDM_COMMAND_ACB_START		302
 #define IDM_COMMAND_ACB_STOP		303
+
+#define	IDM_OPTION_MONITORONSEL	350
+#define IDM_OPTION_MME512		351
+#define IDM_OPTION_KS256		352
+#define IDM_OPTION_WDM256		353
+
+#define IDM_ASIOPATCH_CH11		360
+#define IDM_ASIOPATCH_CH10		361
+#define IDM_ASIOPATCH_CH22		362
+#define IDM_ASIOPATCH_CH20		363
 
 #define IDM_SETPARAMETERW1	400
 #define IDM_SETPARAMETERW2	401
@@ -145,7 +153,21 @@
 #define IDM_REMOVEDEVICE_OUT1	411
 
 
+#define IDC_MIDI_EDIT		420
+#define IDC_MIDI_SEND		421
+
 #define IDC_EDITBOX			500
+
+#define IDM_COMMAND_CUSTOMBUTTON1		590
+#define IDM_COMMAND_CUSTOMBUTTON2		591
+
+#define IDM_COMMAND_CUSTOMBUT_SET1		600
+#define IDM_COMMAND_CUSTOMBUT_SET2		601
+#define IDM_COMMAND_CUSTOMBUT_CHANGE1	602
+#define IDM_COMMAND_CUSTOMBUT_CHANGE2	603
+#define IDM_COMMAND_CUSTOMBUT_REMOVE1	604
+#define IDM_COMMAND_CUSTOMBUT_REMOVE2	605
+
 
 #define IDM_DEVICE_IN1		1024
 #define IDM_DEVICE_OUT1		2048

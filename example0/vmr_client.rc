@@ -1,7 +1,7 @@
 /*--------------------------------------------------------------------------------*/
 /* VMR_CLIENT: Reference example to use all functions of the VMR-API              */
 /*--------------------------------------------------------------------------------*/
-/* 'C' Sample Code to use VoicemeeterRemote                  V.Burel (c)2015-2021 */
+/* 'C' Sample Code to use VoicemeeterRemote                  V.Burel (c)2015-2026 */
 /*                                                                                */
 /*  Based on Minimal program ('C' Programming Under WIN32)                        */
 /*  WEB  : http://pagesperso-orange.fr/vb-audio/fr/pub/programming/index.htm      */
@@ -77,7 +77,18 @@ BEGIN
         MENUITEM "Set Strip(4).Label = 'Name4'",      IDM_LABEL_STRIP4
         MENUITEM "Set BUS(5).Label = 'Name5'",      IDM_LABEL_BUS5
         MENUITEM "Set BUS(6).Label = 'Name6'",      IDM_LABEL_BUS6
+        MENUITEM SEPARATOR
+        MENUITEM "Option.MonitorOnSel = 1",      IDM_OPTION_MONITORONSEL
+		MENUITEM "Option.buffer.mme = 512",		IDM_OPTION_MME512
+		MENUITEM "Option.buffer.wdm = 256",		IDM_OPTION_WDM256
+		MENUITEM "Option.buffer.ks = 256",		IDM_OPTION_KS256
+        MENUITEM SEPARATOR
+        MENUITEM "patch.asio[0] = 1",      IDM_ASIOPATCH_CH11
+        MENUITEM "patch.asio[0] = 0",      IDM_ASIOPATCH_CH10
+        MENUITEM "patch.asio[1] = 1",      IDM_ASIOPATCH_CH22
+        MENUITEM "patch.asio[1] = 0",      IDM_ASIOPATCH_CH20
 
+		
         MENUITEM SEPARATOR
         MENUITEM "SetParametersW(Bus[0].device.wdm= Speakers (High Definition Audio Device))",      IDM_SETPARAMETERW1
         MENUITEM "SetParametersW(Bus[1].device.wdm='''')",      IDM_SETPARAMETERW2
@@ -118,6 +129,7 @@ BEGIN
         MENUITEM "Strip(5).AppMute = (""Windows"", 1)",	IDM_COMMAND_VOLAPP_9
 
 	END
+#ifdef VMR_INCLUDE_AUDIO_PROCESSING_EXAMPLE
     POPUP "&Audio CallBack"
     BEGIN
         MENUITEM "Register Audio Callback",	IDM_COMMAND_ACB_REGISTER
@@ -125,6 +137,18 @@ BEGIN
         MENUITEM "START Audio Callback",	IDM_COMMAND_ACB_START
         MENUITEM "STOP Audio Callback",		IDM_COMMAND_ACB_STOP
     END
+#endif
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING
+    POPUP "&Custom Buttons"
+    BEGIN
+        MENUITEM "Set Button 1",			IDM_COMMAND_CUSTOMBUT_SET1
+        MENUITEM "Set Button 2",			IDM_COMMAND_CUSTOMBUT_SET2
+        MENUITEM "Change Button 1 Label",	IDM_COMMAND_CUSTOMBUT_CHANGE1
+        MENUITEM "Change Button 2 Label",	IDM_COMMAND_CUSTOMBUT_CHANGE2
+        MENUITEM "Remove Button 1",			IDM_COMMAND_CUSTOMBUT_REMOVE1
+        MENUITEM "Remove Button 2",			IDM_COMMAND_CUSTOMBUT_REMOVE2
+    END
+#endif
 END
 
 

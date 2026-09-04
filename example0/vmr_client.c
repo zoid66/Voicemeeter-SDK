@@ -1,7 +1,7 @@
 /*--------------------------------------------------------------------------------*/
 /* VMR_CLIENT: Reference example to use all functions of the VMR-API              */
 /*--------------------------------------------------------------------------------*/
-/* 'C' Sample Code to use VoicemeeterRemote                  V.Burel (c)2015-2021 */
+/* 'C' Sample Code to use VoicemeeterRemote                  V.Burel (c)2015-2026 */
 /*                                                                                */
 /*  Based on Minimal program ('C' Programming Under WIN32)                        */
 /*  WEB  : http://pagesperso-orange.fr/vb-audio/fr/pub/programming/index.htm      */
@@ -22,6 +22,7 @@
 /*  - How to install Audio Callback.                                              */
 /*  - How to manage Potato appplication gain/mute state (in virtual strip).       */
 /*  - How to manage MacroButtons states.                                          */
+/*  - How to manage Custom buttons on Voicemeeter Potato.                         */
 /*                                                                                */
 /*--------------------------------------------------------------------------------*/
 /*                                                                                */
@@ -143,6 +144,7 @@ static T_VBVMR_INTERFACE iVMR;
 
 		iVMR.VBVMR_GetLevel					=VBVMR_GetLevel;
 		iVMR.VBVMR_GetMidiMessage			=VBVMR_GetMidiMessage;
+		iVMR.VBVMR_SendMidiMessage			=VBVMR_SendMidiMessage;
 		iVMR.VBVMR_SetParameterFloat		=VBVMR_SetParameterFloat;
 		iVMR.VBVMR_SetParameters			=VBVMR_SetParameters;
 		iVMR.VBVMR_SetParametersW			=VBVMR_SetParametersW;
@@ -166,7 +168,9 @@ static T_VBVMR_INTERFACE iVMR;
 		iVMR.VBVMR_MacroButton_IsDirty		=VBVMR_MacroButton_IsDirty;
 		iVMR.VBVMR_MacroButton_GetStatus	=VBVMR_MacroButton_GetStatus;
 		iVMR.VBVMR_MacroButton_SetStatus	=VBVMR_MacroButton_SetStatus;
-
+#endif
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING
+		iVMR.VBVMR_SetCustomButton			=VBVMR_SetCustomButton;
 #endif
 		return 0;
 	}
@@ -231,6 +235,9 @@ static T_VBVMR_INTERFACE iVMR;
 		iVMR.VBVMR_MacroButton_GetStatus	=(T_VBVMR_MacroButton_GetStatus)GetProcAddress(G_H_Module,"VBVMR_MacroButton_GetStatus");
 		iVMR.VBVMR_MacroButton_SetStatus	=(T_VBVMR_MacroButton_SetStatus)GetProcAddress(G_H_Module,"VBVMR_MacroButton_SetStatus");
 #endif
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING
+		iVMR.VBVMR_SetCustomButton			=(T_VBVMR_SetCustomButton)GetProcAddress(G_H_Module,"VBVMR_SetCustomButton");
+#endif
 
 		// check pointers are valid
 		if (iVMR.VBVMR_Login == NULL) return -1;
@@ -268,6 +275,9 @@ static T_VBVMR_INTERFACE iVMR;
 		if (iVMR.VBVMR_MacroButton_GetStatus == NULL) return -51;
 		if (iVMR.VBVMR_MacroButton_SetStatus == NULL) return -52;
 #endif
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING
+		if (iVMR.VBVMR_SetCustomButton == NULL) return -53;
+#endif
 		return 0;
 	}
 
@@ -290,12 +300,31 @@ typedef struct tagAPP_CONTEXT
 	HWND		hwnd_MainWindow;
 	HINSTANCE	hinstance;
 	BOOL		AudioIsStarted;
+	long		vbvmr_error;
+	long		vbvmr_connect;
+	long		vbvmr_nbinput;
+	long		vbvmr_nboutput;
+	long		vbvmr_nbbus;
+	long		vbvmr_nbstrip;
+	long		vbvmr_multilayer;
+	long		vbvmr_version;
+	char **		vbvmr_pBUSName;
+	char **		vbvmr_pStripName;
+	long *		vbvmr_pStripChannel;
 
 	HFONT		font;
 	char		MIDIString[256];
 	size_t		wTimer;
 
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING	
+	char		customButton_Message1[128];
+	char		customButton_Message2[128];
+	char		customButton_Message3[128];
+#endif
+
 	HWND		hw_EditBox[NBPARAM_DISPLAYED];
+	HWND		hw_midi_edit;
+	HWND		hw_midi_send;
 } T_APP_CONTEXT, *PT_APP_CONTEXT, *LPT_APP_CONTEXT;
 
 static T_APP_CONTEXT G_MainAppCtx = {NULL, NULL, FALSE};
@@ -327,33 +356,31 @@ void ManageAboutBox(HWND hw)
 	MessageBox(hw,message,title,MB_APPLMODAL | MB_OK | MB_ICONINFORMATION);
 }
 
-void ManageInfoBox(HWND hw)
+void ManageInfoBox(LPT_APP_CONTEXT lpapp, HWND hw)
 {
-	long rep,vmType,vmVersion,v1,v2,v3,v4;
+	long v1,v2,v3,v4;
 	char title[]="Server Info...";
 	char message[512];
 	char sz[128];
 	
-	//get Voicemeeter Program Type
+	//display Voicemeeter Program Type
 	strcpy(message,"Server Name: ");
-	rep=iVMR.VBVMR_GetVoicemeeterType(&vmType);
-	if (rep == 0) 
+	if (lpapp->vbvmr_connect != 0) 
 	{
-		if (vmType ==1) strcat(message, "Voicemeeter");
-		if (vmType ==2) strcat(message, "Voicemeeter Banana");
-		if (vmType ==3) strcat(message, "Voicemeeter Potato");
+		if (lpapp->vbvmr_connect == 1) strcat(message, "Voicemeeter");
+		if (lpapp->vbvmr_connect ==2) strcat(message, "Voicemeeter Banana");
+		if (lpapp->vbvmr_connect ==3) strcat(message, "Voicemeeter Potato");
 	}
 	else strcat(message, "-not connected-");
 	strcat(message,"\nVersion: ");
 
-	//get Voicemeeter Version
-	rep=iVMR.VBVMR_GetVoicemeeterVersion(&vmVersion);
-	if (rep == 0) 
+	//display Voicemeeter Version
+	if (lpapp->vbvmr_connect != 0) 
 	{
-		v1 = (vmVersion & 0xFF000000) >> 24;
-		v2 = (vmVersion & 0x00FF0000) >> 16;
-		v3 = (vmVersion & 0x0000FF00) >> 8;
-		v4 = vmVersion & 0x000000FF;
+		v1 = (lpapp->vbvmr_version & 0xFF000000) >> 24;
+		v2 = (lpapp->vbvmr_version & 0x00FF0000) >> 16;
+		v3 = (lpapp->vbvmr_version & 0x0000FF00) >> 8;
+		v4 = lpapp->vbvmr_version & 0x000000FF;
 		sprintf(sz,"%i.%i.%i.%i",v1,v2,v3,v4);
 		strcat(message, sz);
 	}
@@ -411,7 +438,7 @@ void PROCESSING_initmyDSPContext(void)
 
 #define PROCESSING_DRAWING_Y0	340
 
-void PROCESSING_DrawLevels_insertin(HDC dc)
+void PROCESSING_DrawLevels_insertin(LPT_APP_CONTEXT lpapp, HDC dc)
 {
 	HBRUSH oldbrush;
 	HPEN oldpen;
@@ -426,7 +453,7 @@ void PROCESSING_DrawLevels_insertin(HDC dc)
 	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
 	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
 
-	for (vi=0;vi<34;vi++)
+	for (vi=0;vi< lpapp->vbvmr_nbinput;vi++)
 	{
 		NormalLevel=G_DSP_Ctx.insertin_maxlevel[vi];
 		yy = (long)(dy * NormalLevel);
@@ -450,7 +477,7 @@ void PROCESSING_DrawLevels_insertin(HDC dc)
 	SelectObject(dc,oldbrush);
 }
 
-void PROCESSING_DrawMuteButton_insertin(HDC dc)
+void PROCESSING_DrawMuteButton_insertin(LPT_APP_CONTEXT lpapp, HDC dc)
 {
 	RECT rect;
 	HBRUSH oldbrush;
@@ -465,7 +492,7 @@ void PROCESSING_DrawMuteButton_insertin(HDC dc)
 	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
 	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
 
-	for (vi=0;vi<34;vi++)
+	for (vi=0;vi<lpapp->vbvmr_nbinput;vi++)
 	{
 		if (G_DSP_Ctx.insertin_param_mute[vi] == 0) SelectObject(dc,GetStockObject(WHITE_BRUSH));
 		else SelectObject(dc,GetStockObject(BLACK_BRUSH));
@@ -484,7 +511,7 @@ void PROCESSING_DrawMuteButton_insertin(HDC dc)
 	SelectObject(dc,oldbrush);
 }
 
-void PROCESSING_DrawLevels_insertout(HDC dc)
+void PROCESSING_DrawLevels_insertout(LPT_APP_CONTEXT lpapp, HDC dc)
 {
 	HBRUSH oldbrush;
 	HPEN oldpen;
@@ -499,7 +526,7 @@ void PROCESSING_DrawLevels_insertout(HDC dc)
 	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
 	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
 
-	for (vi=0;vi<64;vi++)
+	for (vi=0;vi<lpapp->vbvmr_nboutput;vi++)
 	{
 		NormalLevel=G_DSP_Ctx.insertout_maxlevel[vi];
 		yy = (long)(dy * NormalLevel);
@@ -523,7 +550,7 @@ void PROCESSING_DrawLevels_insertout(HDC dc)
 	SelectObject(dc,oldbrush);
 }
 
-void PROCESSING_DrawMuteButton_insertout(HDC dc)
+void PROCESSING_DrawMuteButton_insertout(LPT_APP_CONTEXT lpapp, HDC dc)
 {
 	RECT rect;
 	HBRUSH oldbrush;
@@ -538,7 +565,7 @@ void PROCESSING_DrawMuteButton_insertout(HDC dc)
 	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
 	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
 
-	for (vi=0;vi<64;vi++)
+	for (vi=0;vi<lpapp->vbvmr_nboutput;vi++)
 	{
 		if (G_DSP_Ctx.insertout_param_mute[vi] == 0) SelectObject(dc,GetStockObject(WHITE_BRUSH));
 		else SelectObject(dc,GetStockObject(BLACK_BRUSH));
@@ -557,7 +584,7 @@ void PROCESSING_DrawMuteButton_insertout(HDC dc)
 	SelectObject(dc,oldbrush);
 }
 
-void PROCESSING_DrawLevels_main(HDC dc)
+void PROCESSING_DrawLevels_main(LPT_APP_CONTEXT lpapp, HDC dc)
 {
 	HBRUSH oldbrush;
 	HPEN oldpen;
@@ -572,7 +599,7 @@ void PROCESSING_DrawLevels_main(HDC dc)
 	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
 	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
 
-	for (vi=0;vi<(34+64);vi++)
+	for (vi=0;vi<(lpapp->vbvmr_nbinput+lpapp->vbvmr_nboutput);vi++)
 	{
 		NormalLevel=G_DSP_Ctx.main_maxlevel[vi];
 		yy = (long)(dy * NormalLevel);
@@ -596,14 +623,14 @@ void PROCESSING_DrawLevels_main(HDC dc)
 	SelectObject(dc,oldbrush);
 }
 
-void PROCESSING_DrawMuteButton_main(HDC dc)
+void PROCESSING_DrawMuteButton_main(LPT_APP_CONTEXT lpapp, HDC dc)
 {
 	RECT rect;
 	HBRUSH oldbrush;
 	HPEN oldpen;
 	long x0,y0,dx,dy;
 	long vi;
-	x0=50 + (34*14);
+	x0=50 + (lpapp->vbvmr_nbinput*14);
 	y0=PROCESSING_DRAWING_Y0+70+80+50+5;
 	dx=10;
 	dy=10;
@@ -611,7 +638,7 @@ void PROCESSING_DrawMuteButton_main(HDC dc)
 	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
 	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
 
-	for (vi=0;vi<64;vi++)
+	for (vi=0;vi<lpapp->vbvmr_nboutput;vi++)
 	{
 		if (G_DSP_Ctx.main_param_mute[vi] == 0) SelectObject(dc,GetStockObject(WHITE_BRUSH));
 		else SelectObject(dc,GetStockObject(BLACK_BRUSH));
@@ -631,7 +658,7 @@ void PROCESSING_DrawMuteButton_main(HDC dc)
 }
 
 
-void PROCESSING_ManageLButtonDownOnMuteButton(HWND hw, int mx, int my)
+void PROCESSING_ManageLButtonDownOnMuteButton(LPT_APP_CONTEXT lpapp, HWND hw, int mx, int my)
 {
 	HDC dc;
 	RECT rect;
@@ -671,9 +698,9 @@ void PROCESSING_ManageLButtonDownOnMuteButton(HWND hw, int mx, int my)
 
 
 	dc=GetDC(hw);
-	PROCESSING_DrawMuteButton_insertin(dc);
-	PROCESSING_DrawMuteButton_insertout(dc);
-	PROCESSING_DrawMuteButton_main(dc);
+	PROCESSING_DrawMuteButton_insertin(lpapp,dc);
+	PROCESSING_DrawMuteButton_insertout(lpapp,dc);
+	PROCESSING_DrawMuteButton_main(lpapp,dc);
 	ReleaseDC(hw,dc);
 }
 
@@ -689,7 +716,7 @@ long __stdcall PROCESSING_MyCallback(void * lpUser, long nCommand, void * lpData
 	float * lpBufferIn;
 	float * lpBufferOut;
 	float signal, level;
-	int nuChannel,nbs;
+	int nuChannel,nbs, nbi, nbo;
 	LPT_AUDIODSDPCTX lpctx;
 	VBVMR_LPT_AUDIOINFO pinfo;
 	VBVMR_LPT_AUDIOBUFFER lpa;
@@ -739,7 +766,10 @@ long __stdcall PROCESSING_MyCallback(void * lpUser, long nCommand, void * lpData
 		lpa =(VBVMR_LPT_AUDIOBUFFER)lpData;
 		//We compute signal to get level on all possible inputs ( audiobuffer_nbi )
 		//with this Callback, we have egual number of inputs and outputs.
-		for (nuChannel=0;nuChannel<lpa->audiobuffer_nbi;nuChannel++)
+		nbi = lpapp->vbvmr_nbinput;
+		if (nbi >lpa->audiobuffer_nbi) nbi=lpa->audiobuffer_nbi;
+
+		for (nuChannel=0;nuChannel<nbi;nuChannel++)
 		{
 			lpBufferIn = lpa->audiobuffer_r[nuChannel];	//get pointer on input related to channel nuChannel
 			lpBufferOut = lpa->audiobuffer_w[nuChannel]; //get pointer on output related to channel nuChannel
@@ -769,7 +799,9 @@ long __stdcall PROCESSING_MyCallback(void * lpUser, long nCommand, void * lpData
 		lpa =(VBVMR_LPT_AUDIOBUFFER)lpData;
 		//We compute signal to get level on all possible outputs ( audiobuffer_nbi )
 		//with this Callback, we have egual number of inputs and outputs.
-		for (nuChannel=0;nuChannel<lpa->audiobuffer_nbi;nuChannel++)
+		nbi = lpapp->vbvmr_nboutput;
+		if (nbi >lpa->audiobuffer_nbi) nbi=lpa->audiobuffer_nbi;
+		for (nuChannel=0;nuChannel<nbi;nuChannel++)
 		{
 			lpBufferIn = lpa->audiobuffer_r[nuChannel];	//get pointer on input related to channel nuChannel
 			lpBufferOut = lpa->audiobuffer_w[nuChannel]; //get pointer on output related to channel nuChannel
@@ -801,9 +833,16 @@ long __stdcall PROCESSING_MyCallback(void * lpUser, long nCommand, void * lpData
 		//and we process all outputs ( audiobuffer_nbo ) to pass trhough the signal.
 		//opposite to INSERT Callback we got all I/O as input (nbi inputs + nbo outputs) 
 		//and only Voicemeeter outputs as output buffer (2x or 5x or 8x BUS of 8 channels).
+
+		// we get real number of input and output according Voicemeeter Type.
+		// the callback is always sending max nbi and max nbo related to Potato.
+		nbi = lpapp->vbvmr_nbinput;
+		if (nbi >lpa->audiobuffer_nbi) nbi=lpa->audiobuffer_nbi;
+		nbo = lpapp->vbvmr_nboutput;
+		if (nbo >lpa->audiobuffer_nbo) nbo=lpa->audiobuffer_nbo;
 		
 		//process inputs (all I/O's)
-		for (nuChannel=0;nuChannel<lpa->audiobuffer_nbi;nuChannel++)
+		for (nuChannel=0;nuChannel<(nbi+nbo);nuChannel++)
 		{
 			lpBufferIn = lpa->audiobuffer_r[nuChannel];	//get pointer on input related to channel nuChannel
 			lpctx->main_maxlevel[nuChannel] = lpctx->main_maxlevel[nuChannel] * 0.99f; //factor to decrease meter bar
@@ -822,9 +861,9 @@ long __stdcall PROCESSING_MyCallback(void * lpUser, long nCommand, void * lpData
 		}
 
 		//process outputs (all Bus channels)
-		for (nuChannel=0;nuChannel<lpa->audiobuffer_nbo;nuChannel++)
+		for (nuChannel=0;nuChannel<nbo;nuChannel++)
 		{
-			lpBufferIn = lpa->audiobuffer_r[lpa->audiobuffer_nbi-lpa->audiobuffer_nbo+nuChannel];	//get pointer on output related to output BUS
+			lpBufferIn = lpa->audiobuffer_r[nbi+nuChannel];	//get pointer on input related to output BUS
 			lpBufferOut = lpa->audiobuffer_w[nuChannel];	//get pointer on output related to channel nuChannel
 			//for every sample in buffer 
 			for (nbs=0;nbs < lpa->audiobuffer_nbs; nbs++)
@@ -1136,10 +1175,53 @@ void MACROBUTTONS_ManageLButtonDown(HWND hw, int mx, int my)
 
 #endif
 
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING	
+
+void DrawCurrentCustomButtonMessage(LPT_APP_CONTEXT lpapp, HWND hw, HDC dc)
+{
+	RECT rect;
+	HFONT oldfont;
+	HPEN oldpen;
+	HBRUSH oldbrush;
+
+	oldfont = (HFONT)SelectObject(dc,lpapp->font);
+	oldpen = (HPEN)SelectObject(dc,GetStockObject(BLACK_PEN));
+	oldbrush = (HBRUSH)SelectObject(dc,GetStockObject(WHITE_BRUSH));
+	SetBkMode(dc,TRANSPARENT);
+	SetTextColor(dc,RGB(0,0,100));
+	rect.top=340;
+	rect.bottom=rect.top+60;
+	rect.left=850;
+	rect.right=rect.left+300;
+	Rectangle(dc,rect.left,rect.top,rect.right,rect.bottom);
+
+	rect.left+=5;
+	rect.top+=2;
+	if (lpapp->customButton_Message1[0] != 0)
+	{
+		DrawText(dc,lpapp->customButton_Message1, (int)strlen(lpapp->customButton_Message1), &rect, DT_SINGLELINE | DT_TOP | DT_LEFT);
+	}
+	rect.top+=20;
+	if (lpapp->customButton_Message2[0] != 0)
+	{
+		DrawText(dc,lpapp->customButton_Message2, (int)strlen(lpapp->customButton_Message2), &rect, DT_SINGLELINE | DT_TOP | DT_LEFT);
+	}
+	rect.top+=20;
+	if (lpapp->customButton_Message3[0] != 0)
+	{
+		DrawText(dc,lpapp->customButton_Message3, (int)strlen(lpapp->customButton_Message3), &rect, DT_SINGLELINE | DT_TOP | DT_LEFT);
+	}
+
+	SelectObject(dc,oldfont);
+	SelectObject(dc,oldpen);
+	SelectObject(dc,oldbrush);
+}
+#endif
+
 void DrawAllStuff(LPT_APP_CONTEXT lpapp, HWND hw, HDC dc)
 {
 	HFONT oldfont;
-	char sss[128];
+	char sss[256];
 	RECT rect;
 	
 	oldfont = (HFONT)SelectObject(dc,lpapp->font);
@@ -1171,7 +1253,24 @@ void DrawAllStuff(LPT_APP_CONTEXT lpapp, HWND hw, HDC dc)
 	rect.right=rect.left+200;
 	DrawText(dc,sss,(int)strlen(sss),&rect, DT_SINGLELINE | DT_LEFT | DT_TOP);
 
+	rect.top=290;
+	rect.bottom=rect.top+40;
+	strcpy(sss,"Send M.I.D.I. messages\nTo Voicemeeter MIDI out:");
+	rect.left=700;
+	rect.right=rect.left+150;
+	DrawText(dc,sss,(int)strlen(sss),&rect, DT_LEFT | DT_TOP);
 
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING	
+	rect.top=340;
+	rect.bottom=rect.top+40;
+	strcpy(sss,"Custom Buttons\nWM_COMMAND:");
+	rect.left=700;
+	rect.right=rect.left+150;
+	DrawText(dc,sss,(int)strlen(sss),&rect, DT_LEFT | DT_TOP);
+#endif
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING	
+	DrawCurrentCustomButtonMessage(lpapp, hw, dc);
+#endif
 	DrawCurrentValues(lpapp, hw, dc);
 
 
@@ -1195,7 +1294,7 @@ void DrawAllStuff(LPT_APP_CONTEXT lpapp, HWND hw, HDC dc)
 	strcpy(sss,"Mute:");
 	DrawText(dc,sss,(int)strlen(sss),&rect, DT_SINGLELINE | DT_LEFT | DT_TOP);
 	
-	PROCESSING_DrawMuteButton_insertin(dc);
+	PROCESSING_DrawMuteButton_insertin(lpapp,dc);
 	
 	rect.left=10;
 	rect.top=PROCESSING_DRAWING_Y0+70;
@@ -1215,7 +1314,7 @@ void DrawAllStuff(LPT_APP_CONTEXT lpapp, HWND hw, HDC dc)
 	rect.bottom=rect.top+15;
 	strcpy(sss,"Mute:");
 	DrawText(dc,sss,(int)strlen(sss),&rect, DT_SINGLELINE | DT_LEFT | DT_TOP);
-	PROCESSING_DrawMuteButton_insertout(dc);
+	PROCESSING_DrawMuteButton_insertout(lpapp, dc);
 
 
 	rect.left=10;
@@ -1236,7 +1335,7 @@ void DrawAllStuff(LPT_APP_CONTEXT lpapp, HWND hw, HDC dc)
 	rect.bottom=rect.top+15;
 	strcpy(sss,"Mute:");
 	DrawText(dc,sss,(int)strlen(sss),&rect, DT_SINGLELINE | DT_LEFT | DT_TOP);
-	PROCESSING_DrawMuteButton_main(dc);
+	PROCESSING_DrawMuteButton_main(lpapp, dc);
 #endif
 
 #ifdef VMR_INCLUDE_MACROBUTTONS_REMOTING
@@ -1304,6 +1403,64 @@ static void LoadRequestFile(LPT_APP_CONTEXT lpapp, HWND hw)
 	}
 }
 
+static char HexaCharToDec(char cc)
+{
+	char nn=-1;
+	if ((cc > 47) && (cc<58)) nn=(char)(cc-48);
+	if ((cc == 'a') || (cc == 'A')) nn=10;
+	if ((cc == 'b') || (cc == 'B')) nn=11;
+	if ((cc == 'c') || (cc == 'C')) nn=12;
+	if ((cc == 'd') || (cc == 'D')) nn=13;
+	if ((cc == 'e') || (cc == 'E')) nn=14;
+	if ((cc == 'f') || (cc == 'F')) nn=15;
+	return nn;
+}
+
+static void SendMIDIMessage(LPT_APP_CONTEXT lpapp)
+{
+	BOOL flagvalueset;
+	long vi,nu,nbb;
+	unsigned char lpbuffer[1024], value;
+	char cc, sss[1024];
+	GetWindowText(lpapp->hw_midi_edit,sss,1023);
+	sss[1023]=0;
+
+	vi=0;
+	nbb=0;
+	value=0;
+	flagvalueset=FALSE;
+	cc=sss[vi];
+	while (cc != 0)
+	{
+		nu=HexaCharToDec(cc);
+		if (nu >= 0)
+		{
+			value=(unsigned char)((value<<4) | (nu & 0x0000000F));
+			flagvalueset=TRUE;
+		}
+		else
+		{
+			if (flagvalueset == TRUE)
+			{
+				lpbuffer[nbb]=value;
+				value=0;
+				nbb++;
+				flagvalueset=FALSE;
+			}
+		}
+		vi++;
+		cc=sss[vi];
+	}
+	if (flagvalueset == TRUE)
+	{
+		lpbuffer[nbb]=value;
+		nbb++;
+	}
+	if ((iVMR.VBVMR_SendMidiMessage != NULL) && (nbb >0))
+	{
+		iVMR.VBVMR_SendMidiMessage(lpbuffer, nbb);
+	}
+}
 
 /*******************************************************************************/
 /*                                  Manage Menu                                */
@@ -1324,7 +1481,7 @@ void ManageMenu(LPT_APP_CONTEXT lpapp, HWND hw, WPARAM wparam,LPARAM lparam)
 			LoadRequestFile(lpapp, hw);
 			break;
 		case IDM_SERVERINFO:
-			ManageInfoBox(hw);
+			ManageInfoBox(lpapp, hw);
 			break;
 		case IDM_QUIT:
 			ManageCloseMessage(hw);
@@ -1453,6 +1610,32 @@ void ManageMenu(LPT_APP_CONTEXT lpapp, HWND hw, WPARAM wparam,LPARAM lparam)
 		case IDM_LABEL_BUS6:
 			iVMR.VBVMR_SetParameters("BUS(6).Label=\"Name6\"");
 			break;
+		// Options
+		case IDM_OPTION_MONITORONSEL:
+			iVMR.VBVMR_SetParameters("Option.MonitorOnSEL = 1;");
+			break;
+		case IDM_OPTION_MME512:
+			iVMR.VBVMR_SetParameters("Option.buffer.mme = 512;");
+			break;
+		case IDM_OPTION_KS256:
+			iVMR.VBVMR_SetParameters("Option.buffer.ks = 256;");
+			break;
+		case IDM_OPTION_WDM256:
+			iVMR.VBVMR_SetParameters("Option.buffer.wdm = 256;");
+			break;
+		//ASIO PATCH
+		case IDM_ASIOPATCH_CH11:
+			iVMR.VBVMR_SetParameters("Patch.Asio[0] = 1;");
+			break;
+		case IDM_ASIOPATCH_CH10:
+			iVMR.VBVMR_SetParameters("Patch.Asio[0] = 0;");
+			break;
+		case IDM_ASIOPATCH_CH22:
+			iVMR.VBVMR_SetParameters("Patch.Asio[1] = 2;");
+			break;
+		case IDM_ASIOPATCH_CH20:
+			iVMR.VBVMR_SetParameters("Patch.Asio[1] = 0;");
+			break;
 
 		//change device by SetPAramtersW
 		case IDM_SETPARAMETERW1:
@@ -1499,6 +1682,41 @@ void ManageMenu(LPT_APP_CONTEXT lpapp, HWND hw, WPARAM wparam,LPARAM lparam)
 			iVMR.VBVMR_AudioCallbackStart();
 			break;
 #endif
+		// Send MIDI message to Voicemeeter Output
+		case IDC_MIDI_SEND:
+			SendMIDIMessage(lpapp);
+			break;
+		// Custom Button
+#ifdef VMR_INCLUDE_CUSTOMBUTTON_REMOTING
+		case IDM_COMMAND_CUSTOMBUT_SET1:
+			iVMR.VBVMR_SetCustomButton(0, 1, 0, L"Push Button 1", hw, IDM_COMMAND_CUSTOMBUTTON1);
+			break;
+		case IDM_COMMAND_CUSTOMBUT_SET2:
+			iVMR.VBVMR_SetCustomButton(1, 2, 0, L"Button 2", hw, IDM_COMMAND_CUSTOMBUTTON2);
+			break;
+		case IDM_COMMAND_CUSTOMBUT_CHANGE1:
+			iVMR.VBVMR_SetCustomButton(0, 1, -1, L"Change 1", hw, IDM_COMMAND_CUSTOMBUTTON1);
+			break;
+		case IDM_COMMAND_CUSTOMBUT_CHANGE2:
+			iVMR.VBVMR_SetCustomButton(1, 2, -1, L"Change 2", hw, IDM_COMMAND_CUSTOMBUTTON2);
+			break;
+		case IDM_COMMAND_CUSTOMBUT_REMOVE1:
+			iVMR.VBVMR_SetCustomButton(0, -1, -1, NULL, NULL, 0);
+			break;
+		case IDM_COMMAND_CUSTOMBUT_REMOVE2:
+			iVMR.VBVMR_SetCustomButton(1, -1, -1, NULL, NULL, 0);
+			break;
+
+		case IDM_COMMAND_CUSTOMBUTTON1:
+		case IDM_COMMAND_CUSTOMBUTTON2:
+			strcpy(lpapp->customButton_Message1, lpapp->customButton_Message2);
+			strcpy(lpapp->customButton_Message2, lpapp->customButton_Message3);
+			sprintf(lpapp->customButton_Message3, "WM_COMMAND / Button %i / LPARAM = %i", nuCommand - IDM_COMMAND_CUSTOMBUTTON1+1, lparam);			
+			dc=GetDC(hw);
+			DrawCurrentCustomButtonMessage(lpapp, hw, dc);
+			ReleaseDC(hw,dc);
+			break;
+#endif
 
 	}
 
@@ -1542,6 +1760,79 @@ void ManageMenu(LPT_APP_CONTEXT lpapp, HWND hw, WPARAM wparam,LPARAM lparam)
 }
 
 /*******************************************************************************/
+/*                          DETECT VOICEMEETER TYPE                            */
+/*******************************************************************************/
+
+static char * G_szBUSNameList_v1[2]={"A", "B"};
+static char * G_szBUSNameList_v2[5]={"A1", "A2", "A3", "B1", "B2"};
+static char * G_szBUSNameList_v3[8]={"A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3"};
+
+static char * G_szStripNameList_v1[3]={"IN #1", "IN #2", "VIN #1"};
+static char * G_szStripNameList_v2[5]={"IN #1", "IN #2", "IN #3", "VIN #1", "VIN #2"};
+static char * G_szStripNameList_v3[8]={"IN #1", "IN #2", "IN #3", "IN #4", "IN #5", "VIN #1", "VIN #2", "VIN #3"};
+
+static long	G_nbChannelPerStrip_v1[3]={2, 2, 8};
+static long	G_nbChannelPerStrip_v2[5]={2, 2, 2, 8, 8};
+static long	G_nbChannelPerStrip_v3[8]={2, 2, 2, 2, 2, 8, 8, 8};
+
+
+long DetectVoicemeeterType(LPT_APP_CONTEXT lpapp, HWND hw)
+{
+	long rep,vmType;
+
+	lpapp->vbvmr_nbbus			=0;
+	lpapp->vbvmr_nbstrip		=0;
+	lpapp->vbvmr_multilayer		=0;
+	lpapp->vbvmr_nbinput		=0;
+	lpapp->vbvmr_nboutput		=0;
+
+	rep = iVMR.VBVMR_GetVoicemeeterType(&vmType); 
+	if (rep == 0) 
+	{
+		rep=iVMR.VBVMR_GetVoicemeeterVersion(&(lpapp->vbvmr_version));
+		if (lpapp->vbvmr_connect != vmType)
+		{
+			lpapp->vbvmr_connect =vmType;
+			switch(vmType)
+			{
+			case 1://Voicemeeter
+				lpapp->vbvmr_nbinput	=12;
+				lpapp->vbvmr_nboutput	=16;
+				lpapp->vbvmr_nbbus		=2;
+				lpapp->vbvmr_nbstrip	=3;
+				lpapp->vbvmr_pBUSName	=G_szBUSNameList_v1;
+				lpapp->vbvmr_pStripName	=G_szStripNameList_v1;
+				lpapp->vbvmr_pStripChannel =G_nbChannelPerStrip_v1;
+				break;
+			case 2://Voicemeeter Banana
+				lpapp->vbvmr_nbinput	=22;
+				lpapp->vbvmr_nboutput	=40;
+				lpapp->vbvmr_nbbus		=5;
+				lpapp->vbvmr_nbstrip	=5;
+				lpapp->vbvmr_pBUSName	=G_szBUSNameList_v2;
+				lpapp->vbvmr_pStripName	=G_szStripNameList_v2;
+				lpapp->vbvmr_pStripChannel =G_nbChannelPerStrip_v2;
+				break;
+			case 3://Voicemeeter 8
+				lpapp->vbvmr_nbinput	=34;
+				lpapp->vbvmr_nboutput	=64;
+				lpapp->vbvmr_nbbus		=8;
+				lpapp->vbvmr_nbstrip	=8;
+				lpapp->vbvmr_multilayer	=1;
+				lpapp->vbvmr_pBUSName	=G_szBUSNameList_v3;
+				lpapp->vbvmr_pStripName	=G_szStripNameList_v3;
+				lpapp->vbvmr_pStripChannel =G_nbChannelPerStrip_v3;
+				break;
+			}
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+
+/*******************************************************************************/
 /*                               Init / End Software                           */
 /*******************************************************************************/
 
@@ -1549,9 +1840,11 @@ BOOL InitSoftware(LPT_APP_CONTEXT lpapp, HWND hw)
 {
 	LOGFONT		lf;
 	char szTitle[]="Init Error";
-	long vi, rep;
+	long rep;
 
 	lpapp->hwnd_MainWindow = hw;
+	lpapp->vbvmr_connect=0;
+
 	//create font
 	memset(&lf,0, sizeof(LOGFONT));
 	lf.lfHeight	= 16;
@@ -1574,13 +1867,19 @@ BOOL InitSoftware(LPT_APP_CONTEXT lpapp, HWND hw)
 		MessageBox(hw,"Failed To Login",szTitle,MB_APPLMODAL | MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
-	if (rep == 1)
+	//call this to get first parameters state (if server already launched)
+	lpapp->vbvmr_error = iVMR.VBVMR_IsParametersDirty();
+	if (lpapp->vbvmr_error == 0)
+	{
+		DetectVoicemeeterType(lpapp, hw);
+	}
+	//launch a Voicemeeter if needed
+/*	if (rep == 1)
 	{
 		iVMR.VBVMR_RunVoicemeeter(3);
 		Sleep(1000);
-	}
+	}*/
 	//call this to get first parameters state (if server already launched)
-	//for (vi=0;vi<3;vi++) //3 times to be sure to get the last settings on startup.
 	{
 	iVMR.VBVMR_IsParametersDirty();
 #ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
@@ -1592,7 +1891,11 @@ BOOL InitSoftware(LPT_APP_CONTEXT lpapp, HWND hw)
 
 BOOL EndSoftware(LPT_APP_CONTEXT lpapp, HWND hw)
 {
-	if (iVMR.VBVMR_Logout != NULL) iVMR.VBVMR_Logout();
+	if (iVMR.VBVMR_Logout != NULL) 
+	{
+		iVMR.VBVMR_Logout();
+		iVMR.VBVMR_Logout();
+	}
 	if (iVMR.VBVMR_AudioCallbackUnregister != NULL) iVMR.VBVMR_AudioCallbackUnregister();
 
 	if (lpapp->font != NULL) DeleteObject(lpapp->font);
@@ -1627,7 +1930,19 @@ long CreateOurWindowControls(LPT_APP_CONTEXT lpapp, HWND hw)
 
 		y0=y0+30;
 	}
+	// for MIDI Out
+	x0=850;
+	y0=290; 
+	lpapp->hw_midi_edit=CreateWindowEx(WS_EX_CLIENTEDGE,"edit","90 10 7F",
+					 WS_CHILD | WS_VISIBLE | ES_LEFT | WS_TABSTOP | ES_MULTILINE | ES_AUTOVSCROLL,
+					 x0,y0,300,40,
+					 hw,(HMENU)IDC_MIDI_EDIT,lpapp->hinstance,NULL);
+	SendMessage(lpapp->hw_midi_edit,WM_SETFONT,(WPARAM)lpapp->font,MAKELPARAM(1,0));
+	SendMessage(lpapp->hw_midi_edit,EM_SETMARGINS,EC_LEFTMARGIN | EC_RIGHTMARGIN,(LPARAM) MAKELONG(2,2));
 
+	lpapp->hw_midi_send=CreateWindow("button","Send",WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+					 x0+310,y0,100,40,
+					 hw,(HMENU)IDC_MIDI_SEND	,lpapp->hinstance,NULL);
 	return 0;
 }
 
@@ -1714,9 +2029,6 @@ void UpdateDeviceMenu(LPT_APP_CONTEXT lpapp, HMENU hMenu)
 
 
 
-
-
-
 /*******************************************************************************/
 /*                                WIN CALLBACK                                 */
 /*******************************************************************************/
@@ -1754,11 +2066,10 @@ LRESULT CALLBACK MainWindowManageEvent(HWND hw,			//handle of the window.
 			break;
 		case WM_LBUTTONDOWN:
 #ifdef VMR_INCLUDE_AUDIO_PROCESSING_EXAMPLE 
-			PROCESSING_ManageLButtonDownOnMuteButton(hw, (short int)LOWORD(lparam),(short int)HIWORD(lparam));
+			PROCESSING_ManageLButtonDownOnMuteButton(lpapp,hw, (short int)LOWORD(lparam),(short int)HIWORD(lparam));
 #endif
 #ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
 			MACROBUTTONS_ManageLButtonDown(hw, (short int)LOWORD(lparam),(short int)HIWORD(lparam));
-
 #endif				
 			break;	
 		case WM_COMMAND:
@@ -1767,56 +2078,88 @@ LRESULT CALLBACK MainWindowManageEvent(HWND hw,			//handle of the window.
 		case WM_TIMER:
 			if (wparam == MYTIMERID)
 			{
-				//check if we have parameter change
+				//check if voicemeeter type has changed
 				fDisplayParam=iVMR.VBVMR_IsParametersDirty();
-#ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
-				fDisplayButton=iVMR.VBVMR_MacroButton_IsDirty();
-#endif
-
-				//check if we have received MIDI messages
-				fDisplayMIDI=0;
-				nbmax = 32;
-				nbb=iVMR.VBVMR_GetMidiMessage(pBuffer, 1024);
-				while (nbb > 0)		// while there is M.I.D.I. message in stack
+				if (fDisplayParam >= 0)
 				{
-					if (nbmax == 32) lpapp->MIDIString[0]=0;	// reset string at the beginning
-					if (nbmax > 0)	// if our string is not full we add MIDI code to our string
+					if (lpapp->vbvmr_connect == 0)
 					{
-						fDisplayMIDI=1;
-						if (nbb > 32) nbb=32; //32 code max
-						for (vi=0;vi<nbb;vi++)
-						{
-							sprintf(sz,"%02X ", pBuffer[vi]);
-							strcat(lpapp->MIDIString, sz);
-						}
-						nbmax = nbmax -nbb;
+						DetectVoicemeeterType(lpapp, hw);
+						InvalidateRect(hw, NULL, TRUE); //update complete display in case of (re)connection
 					}
-					//get next message if any
-					nbb=iVMR.VBVMR_GetMidiMessage(pBuffer, 1024);
+#ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
+					fDisplayButton=iVMR.VBVMR_MacroButton_IsDirty();
+#endif
+				}
+				else 
+				{
+					if (lpapp->vbvmr_connect != 0)
+					{
+						//Voicemeeter has been shut down
+						lpapp->vbvmr_connect	=0;
+						InvalidateRect(hw,NULL,TRUE);
+					}
 				}
 				
-				//Real Time display 
-				dc=GetDC(hw);
-				DrawCurrentLevels(lpapp, hw, dc);
+				//if we are connecte connected to Voicemeeter 
+				if (lpapp->vbvmr_connect != 0)
+				{
+					//check if we have received MIDI messages
+					fDisplayMIDI=0;
+					nbmax = 32;
+					nbb=iVMR.VBVMR_GetMidiMessage(pBuffer, 1024);
+					while (nbb > 0)		// while there is M.I.D.I. message in stack
+					{
+						if (nbmax == 32) lpapp->MIDIString[0]=0;	// reset string at the beginning
+						if (nbmax > 0)	// if our string is not full we add MIDI code to our string
+						{
+							fDisplayMIDI=1;
+							if (nbb > 32) nbb=32; //32 code max
+							for (vi=0;vi<nbb;vi++)
+							{
+								sprintf(sz,"%02X ", pBuffer[vi]);
+								strcat(lpapp->MIDIString, sz);
+							}
+							nbmax = nbmax -nbb;
+						}
+						//get next message if any
+						nbb=iVMR.VBVMR_GetMidiMessage(pBuffer, 1024);
+					}
+					
+					//Real Time display 
+					dc=GetDC(hw);
+					DrawCurrentLevels(lpapp, hw, dc);
 
-#ifdef VMR_INCLUDE_AUDIO_PROCESSING_EXAMPLE 
-				PROCESSING_DrawLevels_insertin(dc);
-				PROCESSING_DrawLevels_insertout(dc);
-				PROCESSING_DrawLevels_main(dc);
-#endif
-				//update MIDI message display if there is something new
-				if (fDisplayMIDI != 0) DrawCurrentMIDIMessage(lpapp, hw, dc);
-				//update parameters, only if there is change
-				if (fDisplayParam == 1) DrawCurrentValues(lpapp, hw, dc);
-#ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
-				if (fDisplayButton == 1) DrawCurrentButtonState(lpapp, hw, dc);
-#endif				
-				ReleaseDC(hw,dc);
+	#ifdef VMR_INCLUDE_AUDIO_PROCESSING_EXAMPLE 
+					PROCESSING_DrawLevels_insertin(lpapp, dc);
+					PROCESSING_DrawLevels_insertout(lpapp, dc);
+					PROCESSING_DrawLevels_main(lpapp, dc);
+	#endif
+					//update MIDI message display if there is something new
+					if (fDisplayMIDI != 0) DrawCurrentMIDIMessage(lpapp, hw, dc);
+					//update parameters, only if there is change
+					if (fDisplayParam == 1) DrawCurrentValues(lpapp, hw, dc);
+	#ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
+					if (fDisplayButton == 1) DrawCurrentButtonState(lpapp, hw, dc);
+	#endif				
+					ReleaseDC(hw,dc);
+				}
 			}
 			break;
 		case WM_PAINT:
 			dc=BeginPaint(hw,&ps);
 			DrawAllStuff(lpapp,hw, dc);
+			DrawCurrentLevels(lpapp, hw, dc);
+
+	#ifdef VMR_INCLUDE_AUDIO_PROCESSING_EXAMPLE 
+			PROCESSING_DrawLevels_insertin(lpapp, dc);
+			PROCESSING_DrawLevels_insertout(lpapp, dc);
+			PROCESSING_DrawLevels_main(lpapp, dc);
+	#endif
+	#ifdef	VMR_INCLUDE_MACROBUTTONS_REMOTING
+			DrawCurrentButtonState(lpapp, hw, dc);
+	#endif				
+
 			EndPaint(hw,&ps);
 	        break;
 		case WM_CLOSE:
