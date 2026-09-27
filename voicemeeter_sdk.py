@@ -20,49 +20,45 @@ class VoicemeeterClient:
         self._bind_functions()
 
     def _bind_functions(self):
-        self.login = self._lib.VBVMR_Login
-        self.login.restype = ctypes.c_long
-        self.login.argtypes = []
+        self._VBVMR_Login = self._lib.VBVMR_Login
+        self._VBVMR_Login.restype = ctypes.c_long
+        self._VBVMR_Login.argtypes = []
 
-        self.logout = self._lib.VBVMR_Logout
-        self.logout.restype = ctypes.c_long
-        self.logout.argtypes = []
+        self._VBVMR_Logout = self._lib.VBVMR_Logout
+        self._VBVMR_Logout.restype = ctypes.c_long
+        self._VBVMR_Logout.argtypes = []
 
-        self.run_voicemeeter = self._lib.VBVMR_RunVoicemeeter
-        self.run_voicemeeter.restype = ctypes.c_long
-        self.run_voicemeeter.argtypes = [ctypes.c_long]
+        self._VBVMR_RunVoicemeeter = self._lib.VBVMR_RunVoicemeeter
+        self._VBVMR_RunVoicemeeter.restype = ctypes.c_long
+        self._VBVMR_RunVoicemeeter.argtypes = [ctypes.c_long]
 
-        self.get_voicemeeter_type = self._lib.VBVMR_GetVoicemeeterType
-        self.get_voicemeeter_type.restype = ctypes.c_long
-        self.get_voicemeeter_type.argtypes = [ctypes.POINTER(ctypes.c_long)]
+        self._VBVMR_GetVoicemeeterType = self._lib.VBVMR_GetVoicemeeterType
+        self._VBVMR_GetVoicemeeterType.restype = ctypes.c_long
+        self._VBVMR_GetVoicemeeterType.argtypes = [ctypes.POINTER(ctypes.c_long)]
 
-        self.get_voicemeeter_version = self._lib.VBVMR_GetVoicemeeterVersion
-        self.get_voicemeeter_version.restype = ctypes.c_long
-        self.get_voicemeeter_version.argtypes = [ctypes.POINTER(ctypes.c_long)]
+        self._VBVMR_GetVoicemeeterVersion = self._lib.VBVMR_GetVoicemeeterVersion
+        self._VBVMR_GetVoicemeeterVersion.restype = ctypes.c_long
+        self._VBVMR_GetVoicemeeterVersion.argtypes = [ctypes.POINTER(ctypes.c_long)]
 
-        self.is_parameters_dirty = self._lib.VBVMR_IsParametersDirty
-        self.is_parameters_dirty.restype = ctypes.c_long
-        self.is_parameters_dirty.argtypes = []
+        self._VBVMR_IsParametersDirty = self._lib.VBVMR_IsParametersDirty
+        self._VBVMR_IsParametersDirty.restype = ctypes.c_long
+        self._VBVMR_IsParametersDirty.argtypes = []
 
-        self.get_parameter_float = self._lib.VBVMR_GetParameterFloat
-        self.get_parameter_float.restype = ctypes.c_long
-        self.get_parameter_float.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_float)]
+        self._VBVMR_GetParameterFloat = self._lib.VBVMR_GetParameterFloat
+        self._VBVMR_GetParameterFloat.restype = ctypes.c_long
+        self._VBVMR_GetParameterFloat.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_float)]
 
-        self.set_parameter_float = self._lib.VBVMR_SetParameterFloat
-        self.set_parameter_float.restype = ctypes.c_long
-        self.set_parameter_float.argtypes = [ctypes.c_char_p, ctypes.c_float]
+        self._VBVMR_SetParameterFloat = self._lib.VBVMR_SetParameterFloat
+        self._VBVMR_SetParameterFloat.restype = ctypes.c_long
+        self._VBVMR_SetParameterFloat.argtypes = [ctypes.c_char_p, ctypes.c_float]
 
-        self.set_parameters = self._lib.VBVMR_SetParameters
-        self.set_parameters.restype = ctypes.c_long
-        self.set_parameters.argtypes = [ctypes.c_char_p]
+        self._VBVMR_SetParameters = self._lib.VBVMR_SetParameters
+        self._VBVMR_SetParameters.restype = ctypes.c_long
+        self._VBVMR_SetParameters.argtypes = [ctypes.c_char_p]
 
-        self.get_parameter_string_a = self._lib.VBVMR_GetParameterStringA
-        self.get_parameter_string_a.restype = ctypes.c_long
-        self.get_parameter_string_a.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
-
-        self.logout = self._lib.VBVMR_Logout
-        self.logout.restype = ctypes.c_long
-        self.logout.argtypes = []
+        self._VBVMR_GetParameterStringA = self._lib.VBVMR_GetParameterStringA
+        self._VBVMR_GetParameterStringA.restype = ctypes.c_long
+        self._VBVMR_GetParameterStringA.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 
     @staticmethod
     def _decode_version(raw_version):
@@ -104,52 +100,57 @@ class VoicemeeterClient:
         raise VoicemeeterError("Voicemeeter is not installed or the registry key could not be read.")
 
     def login(self):
-        raise AttributeError("The native function bindings are not initialized.")
+        result = self._VBVMR_Login()
+        if result < 0:
+            self._raise_for_result(result)
+        return result
 
     def logout(self):
-        raise AttributeError("The native function bindings are not initialized.")
+        result = self._VBVMR_Logout()
+        self._raise_for_result(result)
+        return result
 
     def run_voicemeeter(self, v_type):
-        result = self._lib.VBVMR_RunVoicemeeter(v_type)
+        result = self._VBVMR_RunVoicemeeter(v_type)
         self._raise_for_result(result)
         return result
 
     def get_voicemeeter_type(self):
         value = ctypes.c_long()
-        result = self._lib.VBVMR_GetVoicemeeterType(ctypes.byref(value))
+        result = self._VBVMR_GetVoicemeeterType(ctypes.byref(value))
         self._raise_for_result(result)
         return int(value.value)
 
     def get_voicemeeter_version(self):
         value = ctypes.c_long()
-        result = self._lib.VBVMR_GetVoicemeeterVersion(ctypes.byref(value))
+        result = self._VBVMR_GetVoicemeeterVersion(ctypes.byref(value))
         self._raise_for_result(result)
         return self._decode_version(int(value.value))
 
     def is_parameters_dirty(self):
-        result = self._lib.VBVMR_IsParametersDirty()
+        result = self._VBVMR_IsParametersDirty()
         self._raise_for_result(result)
         return result
 
     def get_parameter_float(self, parameter_name):
         value = ctypes.c_float()
-        result = self._lib.VBVMR_GetParameterFloat(parameter_name.encode("ascii"), ctypes.byref(value))
+        result = self._VBVMR_GetParameterFloat(parameter_name.encode("ascii"), ctypes.byref(value))
         self._raise_for_result(result)
         return float(value.value)
 
     def set_parameter_float(self, parameter_name, value):
-        result = self._lib.VBVMR_SetParameterFloat(parameter_name.encode("ascii"), ctypes.c_float(value))
+        result = self._VBVMR_SetParameterFloat(parameter_name.encode("ascii"), ctypes.c_float(value))
         self._raise_for_result(result)
         return result
 
     def set_parameters(self, script):
-        result = self._lib.VBVMR_SetParameters(script.encode("ascii"))
+        result = self._VBVMR_SetParameters(script.encode("ascii"))
         self._raise_for_result(result)
         return result
 
     def get_parameter_string(self, parameter_name):
         buffer = ctypes.create_string_buffer(512)
-        result = self._lib.VBVMR_GetParameterStringA(parameter_name.encode("ascii"), buffer)
+        result = self._VBVMR_GetParameterStringA(parameter_name.encode("ascii"), buffer)
         self._raise_for_result(result)
         return buffer.value.decode("ascii", errors="replace")
 

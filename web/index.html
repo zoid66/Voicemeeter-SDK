@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voicemeeter Control</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">VM</div>
+        <div class="brand-copy">
+          <div class="eyebrow">Remote console</div>
+          <h1>Voicemeeter Control</h1>
+        </div>
+        <div class="connection-state">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">Disconnected</span>
+          <button id="connect-button" class="button button-primary">
+            Connect
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero-row">
+          <div>
+            <div class="eyebrow">Live mixing surface</div>
+            <h2>Shape the room, not the software.</h2>
+            <p class="subhead">
+              A focused remote surface for the channels you touch most.
+            </p>
+          </div>
+          <div class="system-card">
+            <div class="system-label">Engine</div>
+            <strong id="engine-value">Not connected</strong>
+            <span id="engine-meta"
+              >Connect to inspect the installed instance</span
+            >
+          </div>
+        </section>
+
+        <section class="mixer-section">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Inputs</div>
+              <h3>Strips</h3>
+            </div>
+            <span class="section-hint">Gain, mute, mono</span>
+          </div>
+          <div id="strip-bank" class="channel-grid"></div>
+        </section>
+
+        <section class="mixer-section bus-section">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Outputs</div>
+              <h3>Buses</h3>
+            </div>
+            <span class="section-hint">A and B destinations</span>
+          </div>
+          <div id="bus-bank" class="channel-grid bus-grid"></div>
+        </section>
+
+        <section class="script-section">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Power user</div>
+              <h3>Command script</h3>
+            </div>
+            <button id="send-script" class="button button-secondary">
+              Send script
+            </button>
+          </div>
+          <textarea id="script-input" spellcheck="false">
+Strip[0].Gain=0.0;</textarea
+          >
+          <div id="activity-log" class="activity-log">Ready.</div>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

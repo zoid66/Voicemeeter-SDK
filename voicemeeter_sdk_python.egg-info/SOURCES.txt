@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+voicemeeter_sdk.py
+tests/test_voicemeeter_sdk.py
+voicemeeter_sdk_python.egg-info/PKG-INFO
+voicemeeter_sdk_python.egg-info/SOURCES.txt
+voicemeeter_sdk_python.egg-info/dependency_links.txt
+voicemeeter_sdk_python.egg-info/requires.txt
+voicemeeter_sdk_python.egg-info/top_level.txt
