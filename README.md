@@ -1,21 +1,10 @@
-# Voicemeeter-SDK
+# Voicemeeter Control Panel
 
-Voicemeeter Remote API + Source Code Examples
-
-Voicemeeter Remote API provides a set of functions to control Voicemeeter parameters, to process audio inside Voicemeeter, to get MIDI messages coming from the Voicemeeter MIDI-Mapping and to control the MacroButtons application. Voicemeeter SDK offers different source code example. example0 is expected to show every functionnalties while other projects are concrete application examples:
-
-- Matrix8x8: example of Audio Processing Application offering a 8x8 gain matrix on a selected BUS.
-- vmr_osd: Exemple of Overlay Screen Display Application to show the current gain of the current moving slider.
-- vmr_play: example to use voicemeeter as audio board to playback a stereo sound.
-- vmr_streamer: example of custom Graphic User Interface controlling Voicemeeter.
-
-# Compilation Instructions and Documentation
-
-Voicemeeter API are provided by standard Windows DLL installed with Voicemeeter. It provides 2x DLL for x32 and x64 applications. Linking method is given in the source code example. Compilation instructions are given in source code header and all API specifications are in the PDF document.
+A Python desktop control panel for Voicemeeter Remote API, built with PyWebView.
 
 # Python desktop control panel
 
-This repository also includes a Python/PyWebView control panel. It is a focused remote mixer for the Voicemeeter API, with:
+The control panel provides:
 
 - connection and engine information;
 - eight strip and eight bus faders;
@@ -23,7 +12,7 @@ This repository also includes a Python/PyWebView control panel. It is a focused 
 - live connection status;
 - a command script box for `VBVMR_SetParameters`.
 
-The native Voicemeeter application must be installed on Windows. From a Python 3.11+ virtual environment, install the project and launch the app:
+The native Voicemeeter application must be installed on Windows. From a Python 3.11+ environment, install the project and launch the app:
 
 ```powershell
 python -m pip install -e .
@@ -34,7 +23,7 @@ The Python UI is an additional application; it does not replace the Voicemeeter 
 
 # Licensing
 
-All source code of this SDK is free to use in any kind of project interacting with Voicemeeter through the voicemeeterremote DLL or VBAN protocol. More details in VoicemeeterRemoteAPI.pdf
+All source code is free to use in any kind of project interacting with Voicemeeter through the voicemeeterremote DLL or VBAN protocol.
 
 Copyright (c) 2021 Vincent Burel
 
