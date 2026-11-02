@@ -1,4 +1,5 @@
 import json
+import re
 import threading
 from pathlib import Path
 
@@ -80,6 +81,29 @@ class VoicemeeterApi:
                 return {"ok": True, "name": parameter_name, "value": float(value)}
             except (ValueError, VoicemeeterError) as exc:
                 return {"ok": False, "error": str(exc), "name": parameter_name}
+
+    def set_linked_parameters(self, parameter_values):
+        with self._lock:
+            if not self._connected:
+                return {"ok": False, "error": "Connect to Voicemeeter first"}
+            if not isinstance(parameter_values, list) or not 2 <= len(parameter_values) <= 8:
+                return {"ok": False, "error": "Invalid linked parameter values"}
+            try:
+                script = []
+                for item in parameter_values:
+                    if not isinstance(item, dict):
+                        return {"ok": False, "error": "Invalid parameter value"}
+                    name = item.get("name")
+                    if not isinstance(name, str) or not name:
+                        return {"ok": False, "error": "Invalid parameter name"}
+                    if not re.fullmatch(r"(Strip|Bus)\[\d+\]\.Gain", name):
+                        return {"ok": False, "error": "Only strip and bus gain parameters can be linked"}
+                    value = max(-60.0, min(12.0, float(item["value"])))
+                    script.append(f"{name}={value:.6f}")
+                self._client.set_parameters(";".join(script))
+                return {"ok": True, "message": "Linked gains updated"}
+            except (KeyError, TypeError, ValueError, VoicemeeterError) as exc:
+                return {"ok": False, "error": str(exc)}
 
     def execute_script(self, script):
         with self._lock:

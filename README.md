@@ -10,6 +10,7 @@ The control panel provides:
 - eight strip and eight bus faders;
 - mute and mono controls;
 - live connection status;
+- selectable two-channel fader linking with existing gain offsets preserved;
 - a command script box for `VBVMR_SetParameters`.
 
 The native Voicemeeter application must be installed on Windows. From a Python 3.11+ environment, install the project and launch the app:

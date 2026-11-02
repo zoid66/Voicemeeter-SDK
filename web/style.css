@@ -233,6 +233,11 @@ h3 {
   border-color: var(--amber);
   background: var(--amber);
 }
+.toggle.selecting {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  background: #102526;
+}
 .script-section {
   border-top: 1px solid var(--line);
   margin-top: 34px;
