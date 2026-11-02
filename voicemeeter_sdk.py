@@ -9,6 +9,7 @@ class VoicemeeterError(RuntimeError):
 
 
 class VoicemeeterClient:
+    print("__name__ =", __name__)
     """A small ctypes wrapper around the native VoicemeeterRemote DLL."""
 
     INSTALLER_UNINST_KEY = "VB:Voicemeeter {17359A74-1236-5467}"
